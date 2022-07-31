@@ -9,11 +9,5 @@ RUN ./autogen.sh
 RUN ./configure --enable-testapp
 RUN make -j8
 
-RUN mkdir -p /deps
-RUN ldd /repo/testapp | tr -s '[:blank:]' '\n' | grep '^/' | xargs -I % sh -c 'cp % /deps;'
-
 FROM ubuntu:22.04 as package
-
-COPY --from=builder /deps /deps
-COPY --from=builder /repo/testapp /repo/testapp
-ENV LD_LIBRARY_PATH=/deps
+COPY --from=builder /repo/testapp /
