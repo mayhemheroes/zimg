@@ -1,10 +1,21 @@
 #pragma once
 
-#ifndef ZIMG_GRAPH_GRAPHBUILDER2_H_
-#define ZIMG_GRAPH_GRAPHBUILDER2_H_
+#ifndef ZIMG_GRAPH_GRAPHBUILDER_H_
+#define ZIMG_GRAPH_GRAPHBUILDER_H_
 
+#include <array>
 #include <memory>
+#include <utility>
+#include <vector>
 #include "colorspace/colorspace.h"
+#include "graphengine/types.h"
+
+namespace graphengine {
+class Filter;
+class Graph;
+class SubGraph;
+}
+
 
 namespace zimg {
 
@@ -28,7 +39,7 @@ struct UnresizeConversion;
 
 namespace graph {
 
-class FilterGraph;
+class FilterGraph2;
 
 /**
  * Observer interface for debugging filter instantiation.
@@ -36,6 +47,8 @@ class FilterGraph;
 class FilterObserver {
 public:
 	virtual ~FilterObserver() = default;
+
+	virtual void subrectangle(unsigned left, unsigned top, unsigned width, unsigned height, int plane) {}
 
 	virtual void yuv_to_grey() {}
 	virtual void grey_to_yuv() {}
@@ -50,6 +63,43 @@ public:
 	virtual void depth(const depth::DepthConversion &conv, int plane) {}
 	virtual void resize(const resize::ResizeConversion &conv, int plane) {}
 	virtual void unresize(const unresize::UnresizeConversion &conv, int plane) {}
+};
+
+
+/**
+ * Holds a subgraph that can be inserted into an actual graph instance.
+ */
+class SubGraph {
+private:
+	std::vector<std::unique_ptr<graphengine::Filter>> m_filters;
+	std::unique_ptr<graphengine::SubGraph> m_subgraph;
+	graphengine::node_id m_source_ids[4];
+	graphengine::node_id m_sink_ids[4];
+public:
+	SubGraph();
+
+	SubGraph(SubGraph &&other) noexcept;
+
+	~SubGraph();
+
+	SubGraph &operator=(SubGraph &&other) noexcept;
+
+	graphengine::node_dep_desc source_plane_0() const { return{ m_source_ids[0], 0 }; }
+	graphengine::node_dep_desc source_plane_1() const { return{ m_source_ids[1], 0 }; }
+	graphengine::node_dep_desc source_plane_2() const { return{ m_source_ids[2], 0 }; }
+	graphengine::node_dep_desc source_plane_3() const { return{ m_source_ids[3], 0 }; }
+
+	const graphengine::Filter *save_filter(std::unique_ptr<graphengine::Filter> filter);
+
+	graphengine::node_id add_transform(const graphengine::Filter *filter, const graphengine::node_dep_desc deps[]);
+
+	void set_sink(unsigned num_planes, const graphengine::node_dep_desc deps[]);
+
+	std::array<graphengine::node_dep_desc, 4> connect(graphengine::Graph *graph, const graphengine::node_dep_desc source_deps[4]) const;
+
+	std::vector<std::unique_ptr<graphengine::Filter>> release_filters();
+
+	std::shared_ptr<void> release_filters_opaque();
 };
 
 
@@ -179,16 +229,26 @@ public:
 	GraphBuilder &connect(const state &target, const params *params, FilterObserver *observer = nullptr);
 
 	/**
+	 * Finalize and return a partial graph.
+	 *
+	 * The partial graph can be used to apply the modeled transformation to nodes
+	 * already present in another graph.
+	 *
+	 * @return graph
+	 */
+	SubGraph build_subgraph();
+
+	/**
 	 * Finalize and return a complete filter graph.
 	 *
 	 * Returns a graph with the output node set to the current format.
 	 *
 	 * @return graph
 	 */
-	std::unique_ptr<FilterGraph> complete();
+	std::unique_ptr<FilterGraph> build_graph();
 };
 
 } // namespace graph
 } // namespace zimg
 
-#endif // ZIMG_GRAPH_GRAPHBUILDER2_H_
+#endif // ZIMG_GRAPH_GRAPHBUILDER_H_

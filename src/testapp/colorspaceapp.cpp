@@ -4,10 +4,10 @@
 #include <memory>
 #include <regex>
 #include <string>
+#include "colorspace/colorspace.h"
 #include "common/except.h"
 #include "common/pixel.h"
-#include "graph/image_filter.h"
-#include "colorspace/colorspace.h"
+#include "graphengine/filter.h"
 
 #include "apps.h"
 #include "argparse.h"
@@ -33,6 +33,7 @@ int decode_colorspace(const struct ArgparseOption *opt, void *out, const char *p
 		csp->transfer = g_transfer_table[match[2].str().c_str()];
 		csp->primaries = g_primaries_table[match[3].str().c_str()];
 	} catch (const std::exception &e) {
+		std::cerr << "error parsing colorspace: " << param << '\n';
 		std::cerr << e.what() << '\n';
 		return -1;
 	}
@@ -47,9 +48,9 @@ double ns_per_sample(const ImageFrame &frame, double seconds)
 	return seconds * 1e9 / samples;
 }
 
-void execute(const zimg::graph::ImageFilter *filter, const ImageFrame *src_frame, ImageFrame *dst_frame, unsigned times)
+void execute(const graphengine::Filter *filter, const ImageFrame *src_frame, ImageFrame *dst_frame, unsigned times)
 {
-	auto results = measure_benchmark(times, FilterExecutor{ filter, nullptr, src_frame, dst_frame }, [](unsigned n, double d)
+	auto results = measure_benchmark(times, FilterExecutor{ filter, src_frame, dst_frame }, [](unsigned n, double d)
 	{
 		std::cout << '#' << n << ": " << d << '\n';
 	});
