@@ -1,0 +1,7 @@
+project: zimg
+target: testapp
+
+cmds:
+  - cmd: /testapp graph @@
+    env:
+      DISABLE_SMOKETEST: '1'

@@ -1,0 +1,6 @@
+project: zimg
+target: parse-document
+
+cmds:
+  - cmd: /fuzz_parse_document
+    libfuzzer: true
